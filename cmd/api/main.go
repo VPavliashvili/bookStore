@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	router := router.NewMyRouter()
+	router := router.New()
 
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", 6012),

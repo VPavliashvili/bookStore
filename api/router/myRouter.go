@@ -5,33 +5,33 @@ import (
 	"net/http"
 )
 
-type myRouter struct {
+type customMux struct {
 	*http.ServeMux
 	middlewares []func(http.Handler) http.Handler
 }
 
-func (m *myRouter) handle(pattern string, handler http.Handler) {
+func (m *customMux) handle(pattern string, handler http.Handler) {
 	for _, middleware := range m.middlewares {
 		handler = middleware(handler)
 	}
 	m.Handle(pattern, handler)
 }
 
-func (m *myRouter) handleFunc(pattern string, handler http.HandlerFunc) {
+func (m *customMux) handleFunc(pattern string, handler http.HandlerFunc) {
 	m.handle(pattern, handler)
 }
 
-func (m *myRouter) use(middlewares ...func(http.Handler) http.Handler) *myRouter {
+func (m *customMux) use(middlewares ...func(http.Handler) http.Handler) *customMux {
 	m.middlewares = append(m.middlewares, middlewares...)
 	return m
 }
 
-func NewMyRouter() *myRouter {
-	router := &myRouter{
+func New() *customMux {
+	router := &customMux{
 		ServeMux: http.NewServeMux(),
 	}
 	router.use(testMiddleware)
-	router.handle("/api/info/", info())
+	router.handle("/api/info/", infoRouteGroup())
 
 	// mux.HandleFunc("GET /swagger/*", httpSwagger.Handler(
 	// 	httpSwagger.URL(fmt.Sprintf("http://localhost:%d/swagger/doc.json", app.config.port)),
@@ -40,8 +40,8 @@ func NewMyRouter() *myRouter {
 	return router
 }
 
-func info() http.Handler {
-	subRouter := &myRouter{
+func infoRouteGroup() http.Handler {
+	subRouter := &customMux{
 		ServeMux: http.NewServeMux(),
 	}
 
