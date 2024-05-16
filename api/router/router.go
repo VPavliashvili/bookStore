@@ -1,6 +1,8 @@
 package router
 
 import (
+	system "booksapi/api/resource/system"
+	"booksapi/api/router/middlewares"
 	"booksapi/docs"
 	"fmt"
 	"net/http"
@@ -29,7 +31,7 @@ func (m *customMux) use(middlewares ...func(http.Handler) http.Handler) *customM
 	return m
 }
 
-func New() *customMux {
+func New(systemApi system.API) *customMux {
 
 	docs.SwaggerInfo.Title = "Books store API"
 	docs.SwaggerInfo.Description = "This is a simple CRUD api implementation for educatinal purposes"
@@ -38,8 +40,8 @@ func New() *customMux {
 	router := &customMux{
 		ServeMux: http.NewServeMux(),
 	}
-	router.use(testMiddleware)
-	router.handle("/api/info/", infoRouteGroup())
+	router.use(middlewares.ContentTypeJSON)
+	router.handle("/api/system/", systemRouteGroup(systemApi))
 
 	router.HandleFunc("GET /swagger/*", httpSwagger.Handler(
 		httpSwagger.URL(fmt.Sprintf("http://localhost:%d/swagger/doc.json", 6012)),
@@ -48,22 +50,17 @@ func New() *customMux {
 	return router
 }
 
-func infoRouteGroup() http.Handler {
+func systemRouteGroup(api system.API) http.Handler {
 	subRouter := &customMux{
 		ServeMux: http.NewServeMux(),
 	}
 
-	subRouter.use(testMiddlewareSubRouter)
-
 	subRouter.handleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "health check from myRouter")
+		api.HandleHealth(w, r)
 	})
 	subRouter.handleFunc("GET /about", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "api info from myRouter")
-	})
-	subRouter.handleFunc("POST /about", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "about as post from myrouter")
+		api.HandleAbout(w, r)
 	})
 
-	return http.StripPrefix("/api/info", subRouter)
+	return http.StripPrefix("/api/system", subRouter)
 }

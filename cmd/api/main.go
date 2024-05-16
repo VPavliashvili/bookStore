@@ -1,13 +1,19 @@
 package main
 
 import (
+	system "booksapi/api/resource/system"
 	"booksapi/api/router"
 	"fmt"
 	"net/http"
+	"time"
 )
 
 func main() {
-	router := router.New()
+	buildTime := time.Now().String() // TO DO
+
+	systemApi := system.New(buildTime)
+
+	router := router.New(systemApi)
 
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", 6012),
