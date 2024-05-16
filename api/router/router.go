@@ -1,8 +1,11 @@
 package router
 
 import (
+	"booksapi/docs"
 	"fmt"
 	"net/http"
+
+	httpSwagger "github.com/swaggo/http-swagger"
 )
 
 type customMux struct {
@@ -27,15 +30,20 @@ func (m *customMux) use(middlewares ...func(http.Handler) http.Handler) *customM
 }
 
 func New() *customMux {
+
+	docs.SwaggerInfo.Title = "Books store API"
+	docs.SwaggerInfo.Description = "This is a simple CRUD api implementation for educatinal purposes"
+	docs.SwaggerInfo.Version = "1.0"
+
 	router := &customMux{
 		ServeMux: http.NewServeMux(),
 	}
 	router.use(testMiddleware)
 	router.handle("/api/info/", infoRouteGroup())
 
-	// mux.HandleFunc("GET /swagger/*", httpSwagger.Handler(
-	// 	httpSwagger.URL(fmt.Sprintf("http://localhost:%d/swagger/doc.json", app.config.port)),
-	// ))
+	router.HandleFunc("GET /swagger/*", httpSwagger.Handler(
+		httpSwagger.URL(fmt.Sprintf("http://localhost:%d/swagger/doc.json", 6012)),
+	))
 
 	return router
 }
