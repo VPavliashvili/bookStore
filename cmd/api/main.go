@@ -1,6 +1,7 @@
 package main
 
 import (
+	"booksapi/api/resource/books"
 	"booksapi/api/resource/system"
 	"booksapi/api/router"
 	"booksapi/config"
@@ -26,8 +27,7 @@ func main() {
 		this.Use(middlewares.ContentTypeJSON)
 
 		this.AddGroup("/api/system/", func(ng *router.Group) {
-			buildTime := time.Now().String() // TO DO
-			systemApi := system.New(buildTime)
+			systemApi := system.New()
 
 			ng.HandleRouteFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 				systemApi.HandleHealth(w, r)
@@ -37,8 +37,17 @@ func main() {
 			})
 		})
 
+		this.AddGroup("/api/store/", func(ng *router.Group) {
+			booksApi := books.New()
+
+			ng.HandleRouteFunc("GET /books", func(w http.ResponseWriter, r *http.Request) {
+				booksApi.GetBooks(w, r)
+			})
+
+		})
+
 		this.HandleFunc("GET /swagger/*", httpSwagger.Handler(
-			httpSwagger.URL(fmt.Sprintf("http://localhost:%d/swagger/doc.json", 6012)),
+			httpSwagger.URL(fmt.Sprintf("http://localhost:%d/swagger/doc.json", conf.Port)),
 		))
 
 		return this

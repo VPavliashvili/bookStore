@@ -7,13 +7,10 @@ import (
 )
 
 type API struct {
-	buildTime string
 }
 
-func New(buildTime string) API {
-	return API{
-		buildTime: buildTime,
-	}
+func New() API {
+	return API{}
 }
 
 // HandleAbout godoc
@@ -24,12 +21,12 @@ func New(buildTime string) API {
 //	@Produce		json
 //	@Success		200	{object}	aboutDTO
 //	@Router			/api/system/about [get]
-func (api *API) HandleAbout(w http.ResponseWriter, r *http.Request) {
+func (api API) HandleAbout(w http.ResponseWriter, r *http.Request) {
 	dto := aboutDTO{
 		Product:       "Books Api",
 		Author:        "VPavliashvili",
 		Version:       "1.0",
-		BuildDatetime: api.buildTime,
+		BuildDatetime: "", // TO DO
 	}
 
 	json, _ := json.Marshal(dto)
@@ -45,7 +42,7 @@ func (api *API) HandleAbout(w http.ResponseWriter, r *http.Request) {
 //	@Produce		json
 //	@Success		200	{object}	healthDTO
 //	@Router			/api/system/health [get]
-func (api *API) HandleHealth(w http.ResponseWriter, r *http.Request) {
+func (api API) HandleHealth(w http.ResponseWriter, r *http.Request) {
 	dto := healthDTO{
 		Healthy: true, // TO DO
 	}
