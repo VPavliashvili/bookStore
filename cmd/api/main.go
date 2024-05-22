@@ -16,6 +16,9 @@ import (
 )
 
 func main() {
+
+    println("HELLO THERE\nAPPLICATION HAS STARTED")
+    
 	appsettings := config.New()
 	conf := appsettings.Config
 

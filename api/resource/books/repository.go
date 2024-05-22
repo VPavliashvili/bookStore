@@ -13,7 +13,7 @@ func (repo *BooksRepo) GetBooks() ([]bookEntity, error) {
 			Author:        "JRR Tolkien",
 			Price:         20,
 			NumberOfPages: 432,
-			Genre:         "",
+			Genre:         "fantasy",
 			ReleaseYear:   1954,
 		},
 	}, nil

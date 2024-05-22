@@ -1,0 +1,8 @@
+services:
+  api:
+    container_name: compose_booksapi
+    image: booksapi:latest
+    ports:
+      - 6012:6012
+    volumes:
+      - .:/app # this volume provides hotreload capability
