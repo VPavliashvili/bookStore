@@ -3,6 +3,7 @@ package books
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"testing"
 )
@@ -26,15 +27,16 @@ func (w *fakeWriter) WriteHeader(statusCode int) {
 }
 
 type fakeRepo struct {
-	returner func() ([]bookEntity, error)
+	pluralReturner func() ([]bookEntity, error)
+	singleReturner func(int) (bookEntity, error)
 }
 
-func (r fakeRepo) GetBookById(int) (bookEntity, error) {
-	panic("unimplemented")
+func (r fakeRepo) GetBookById(id int) (bookEntity, error) {
+	return r.singleReturner(id)
 }
 
 func (r fakeRepo) GetBooks() ([]bookEntity, error) {
-	return r.returner()
+	return r.pluralReturner()
 }
 
 func TestGetBooks(t *testing.T) {
@@ -47,7 +49,7 @@ func TestGetBooks(t *testing.T) {
 		}
 	}{
 		{
-			repo: fakeRepo{returner: func() ([]bookEntity, error) {
+			repo: fakeRepo{pluralReturner: func() ([]bookEntity, error) {
 				return nil, errors.New("fake err")
 			}},
 			w: &fakeWriter{},
@@ -64,7 +66,7 @@ func TestGetBooks(t *testing.T) {
 		},
 		{
 			repo: fakeRepo{
-				returner: func() ([]bookEntity, error) {
+				pluralReturner: func() ([]bookEntity, error) {
 					return []bookEntity{
 						{
 							Title:         "The Fellowship of the Ring",
@@ -101,7 +103,7 @@ func TestGetBooks(t *testing.T) {
 		},
 		{
 			repo: fakeRepo{
-				returner: func() ([]bookEntity, error) {
+				pluralReturner: func() ([]bookEntity, error) {
 					return []bookEntity{}, nil
 				},
 			},
@@ -116,7 +118,7 @@ func TestGetBooks(t *testing.T) {
 		},
 		{
 			repo: fakeRepo{
-				returner: func() ([]bookEntity, error) {
+				pluralReturner: func() ([]bookEntity, error) {
 					return nil, nil
 				},
 			},
@@ -134,6 +136,120 @@ func TestGetBooks(t *testing.T) {
 	for _, tc := range tcases {
 		api := API{repo: tc.repo}
 		api.GetBooks(tc.w, nil)
+		if tc.expected.data != tc.w.input {
+			t.Errorf("GetBooks failed\nexpected %v\ngot %s", tc.expected.data, tc.w.input)
+		}
+		if tc.expected.headerStatus != tc.w.headerStatus {
+			t.Errorf("GetBooks response header failed\nexpected %v\ngot  %v",
+				tc.expected.headerStatus, tc.w.headerStatus)
+		}
+	}
+}
+
+func TestGetBookById(t *testing.T) {
+	tcases := []struct {
+		repo     fakeRepo
+		w        *fakeWriter
+		req      *http.Request
+		expected struct {
+			data         string
+			headerStatus int
+		}
+	}{
+		{
+			req: func() *http.Request {
+				rq := &http.Request{}
+				rq.SetPathValue("id", "wrongStr")
+
+				return rq
+			}(),
+			repo: fakeRepo{},
+			w:    &fakeWriter{},
+			expected: struct {
+				data         string
+				headerStatus int
+			}{
+				data: APIError{
+					Status:  400,
+					Message: "only accept integer values as {id} path parameter",
+				}.Error(),
+				headerStatus: 400,
+			},
+		},
+		{
+			repo: fakeRepo{singleReturner: func(i int) (bookEntity, error) {
+				return bookEntity{}, notfoundErr{fmt.Sprintf("resource not found err, at id -> %v", i)}
+			}},
+			w: &fakeWriter{},
+			req: func() *http.Request {
+				rq := &http.Request{}
+				rq.SetPathValue("id", "123")
+
+				return rq
+			}(),
+			expected: struct {
+				data         string
+				headerStatus int
+			}{
+				data: APIError{
+					Status:  404,
+					Message: "resource not found err, at id -> 123",
+				}.Error(),
+				headerStatus: 404,
+			},
+		},
+		{
+			repo: fakeRepo{singleReturner: func(i int) (bookEntity, error) {
+				return bookEntity{}, internalErr{message: "internal err"}
+			}},
+			w: &fakeWriter{},
+			req: func() *http.Request {
+				rq := &http.Request{}
+				rq.SetPathValue("id", "10")
+
+				return rq
+			}(),
+			expected: struct {
+				data         string
+				headerStatus int
+			}{
+				data: APIError{
+					Status:  500,
+					Message: "internal err",
+				}.Error(),
+				headerStatus: 500,
+			},
+		},
+		{
+			repo: fakeRepo{singleReturner: func(i int) (bookEntity, error) {
+				return bookEntity{Title: "Superman Red Son"}, nil
+			}},
+			w: &fakeWriter{},
+			req: func() *http.Request {
+				rq := &http.Request{}
+				rq.SetPathValue("id", "10")
+
+				return rq
+			}(),
+			expected: struct {
+				data         string
+				headerStatus int
+			}{
+				data: func() string {
+					dto := bookDTO{
+						Title: "Superman Red Son",
+					}
+					json, _ := json.Marshal(dto)
+					return string(json[:])
+				}(),
+				headerStatus: 200,
+			},
+		},
+	}
+
+	for _, tc := range tcases {
+		api := API{repo: tc.repo}
+		api.GetBook(tc.w, tc.req)
 		if tc.expected.data != tc.w.input {
 			t.Errorf("GetBooks failed\nexpected %v\ngot %s", tc.expected.data, tc.w.input)
 		}

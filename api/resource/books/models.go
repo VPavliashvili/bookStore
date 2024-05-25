@@ -1,6 +1,8 @@
 package books
 
-import "encoding/json"
+import (
+	"encoding/json"
+)
 
 type bookEntity struct {
 	Title         string
@@ -32,4 +34,28 @@ type APIError struct {
 func (e APIError) Error() string {
 	json, _ := json.Marshal(e)
 	return string(json[:])
+}
+
+type internalErr struct {
+	message string
+}
+
+func (e internalErr) Error() string {
+	return e.message
+}
+
+type notfoundErr struct {
+	message string
+}
+
+func (e notfoundErr) Error() string {
+	return e.message
+}
+
+type badreqErr struct {
+	message string
+}
+
+func (e badreqErr) Error() string {
+	return e.message
 }

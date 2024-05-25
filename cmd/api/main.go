@@ -17,8 +17,8 @@ import (
 
 func main() {
 
-    println("HELLO THERE\nAPPLICATION HAS STARTED")
-    
+	println("HELLO THERE\nAPPLICATION HAS STARTED")
+
 	appsettings := config.New()
 	conf := appsettings.Config
 
@@ -40,11 +40,16 @@ func main() {
 			})
 		})
 
-		this.AddGroup("/api/store/", func(ng *router.Group) {
+		this.AddGroup("/api/", func(ng *router.Group) {
 			booksApi := books.New()
 
 			ng.HandleRouteFunc("GET /books", func(w http.ResponseWriter, r *http.Request) {
 				booksApi.GetBooks(w, r)
+			})
+
+			ng.HandleRouteFunc("GET /books/{id}", func(w http.ResponseWriter, r *http.Request) {
+				booksApi.GetBook(w, r)
+				// fmt.Fprintf(w, "%v", r.PathValue("id"))
 			})
 
 		})
