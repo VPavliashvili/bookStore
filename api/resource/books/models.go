@@ -1,5 +1,7 @@
 package books
 
+import "encoding/json"
+
 type bookEntity struct {
 	Title         string
 	Author        string
@@ -25,4 +27,9 @@ type bookDTO struct {
 type APIError struct {
 	Status  int    `json:"status"`
 	Message string `json:"message"`
+}
+
+func (e APIError) Error() string {
+	json, _ := json.Marshal(e)
+	return string(json[:])
 }

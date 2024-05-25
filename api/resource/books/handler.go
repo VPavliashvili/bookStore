@@ -10,6 +10,12 @@ type API struct {
 	repo IBooksRepo
 }
 
+func New() API {
+	return API{
+		repo: &BooksRepo{},
+	}
+}
+
 // GetBooks returns all books
 //
 //	@Summary      Lists all books
@@ -28,23 +34,32 @@ func (api API) GetBooks(w http.ResponseWriter, r *http.Request) {
 			Status:  500,
 			Message: err.Error(),
 		}
-		json, _ := json.Marshal(e)
-		fmt.Fprint(w, string(json[:]))
+		fmt.Fprint(w, e.Error())
 		return
 	}
 
-	var dtos []bookDTO
+	dtos := make([]bookDTO, 0)
 	for _, b := range repoRes {
 		dtos = append(dtos, b.ToDto())
 	}
 
 	json, _ := json.Marshal(dtos)
 
-	fmt.Fprintf(w, "%s\n", string(json[:]))
+	w.WriteHeader(200)
+	fmt.Fprintf(w, "%s", string(json[:]))
 }
 
-func New() API {
-	return API{
-		repo: &BooksRepo{},
-	}
+// GetBook returns a book by id
+//
+//	@Summary      Get book by id
+//	@Description  get book
+//	@Tags         books
+//	@Accept       json
+//	@Produce      json
+//	@Success      200  {object}   bookDTO
+//	@Failure      500  {object}  APIError
+//	@Failure      404  {object}  APIError
+//	@Router       /api/store/books{id} [get]
+func (api API) GetBook(id int, w http.ResponseWriter, r *http.Request) {
+	// repoRes, err := api.repo.GetBookById(id)
 }

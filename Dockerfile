@@ -17,21 +17,7 @@ ENV PATH="${PATH}:$HOME/go/bin"
 ENV PATH="${PATH}:/usr/local/go/bin"
 
 COPY . .
-# COPY .env .
-
-# RUN tree -a
-
-# RUN go build -c ./cmd/api/ -v -o ./main
-# # RUN tree --gitignore
-#
-# RUN swag init -d cmd/api/,api/resource/system/,api/resource/books/
-#
-# CMD ["cmd/api/main"]
-
-# EXPOSE 8009
 
 RUN git config --global --add safe.directory /app
 
 CMD swag init -d cmd/api/,api/resource/system/,api/resource/books/ && CompileDaemon --exclude-dir="docs" --build="./build.sh" --command="./main" --color
-
-# ENTRYPOINT CompileDaemon --build="go build -a -installsuffix cgo -o main ." --command=./main
