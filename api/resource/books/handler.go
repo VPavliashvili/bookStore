@@ -7,6 +7,31 @@ import (
 	"strconv"
 )
 
+func writeAPIErr(err APIError, w http.ResponseWriter) {
+	w.WriteHeader(err.Status)
+	fmt.Fprint(w, err.Error())
+}
+
+func writeErr(err error, status int, w http.ResponseWriter) {
+	e := APIError{
+		Status:  status,
+		Message: err.Error(),
+	}
+
+	writeAPIErr(e, w)
+}
+
+func getRepoErrcode(err error) int {
+	var code int
+	switch err.(type) {
+	case internalErr:
+		code = http.StatusInternalServerError
+	case notfoundErr:
+		code = http.StatusNotFound
+	}
+	return code
+}
+
 type API struct {
 	repo IBooksRepo
 }
@@ -30,12 +55,7 @@ func New() API {
 func (api API) GetBooks(w http.ResponseWriter, r *http.Request) {
 	repoRes, err := api.repo.GetBooks()
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		e := APIError{
-			Status:  http.StatusInternalServerError,
-			Message: err.Error(),
-		}
-		fmt.Fprint(w, e.Error())
+		writeErr(err, http.StatusInternalServerError, w)
 		return
 	}
 
@@ -67,30 +87,18 @@ func (api API) GetBook(w http.ResponseWriter, r *http.Request) {
 	p := r.PathValue("id")
 	id, err := strconv.Atoi(p)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
 		e := APIError{
 			Status:  http.StatusBadRequest,
 			Message: "only accept integer values as {id} path parameter",
 		}
-		fmt.Fprint(w, e.Error())
+		writeAPIErr(e, w)
 		return
 	}
 
 	book, err := api.repo.GetBookById(id)
 	if err != nil {
-		var code int
-		switch err.(type) {
-		case internalErr:
-			code = http.StatusInternalServerError
-		case notfoundErr:
-			code = http.StatusNotFound
-		}
-		w.WriteHeader(code)
-		e := APIError{
-			Status:  code,
-			Message: err.Error(),
-		}
-		fmt.Fprint(w, e.Error())
+		code := getRepoErrcode(err)
+		writeErr(err, code, w)
 		return
 	}
 
@@ -119,22 +127,20 @@ func (api API) AddBook(w http.ResponseWriter, r *http.Request) {
 	decoder.DisallowUnknownFields()
 	err := decoder.Decode(&dto)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
 		e := APIError{
 			Message: "invalid request model",
 			Status:  http.StatusBadRequest,
 		}
-		fmt.Fprint(w, e.Error())
+		writeAPIErr(e, w)
 		return
 	}
 
 	if len(dto.Title) == 0 || len(dto.Author) == 0 {
-		w.WriteHeader(http.StatusBadRequest)
 		e := APIError{
 			Message: "required fields are not set, won't save the data",
 			Status:  http.StatusBadRequest,
 		}
-		fmt.Fprint(w, e.Error())
+		writeAPIErr(e, w)
 		return
 	}
 
@@ -142,12 +148,7 @@ func (api API) AddBook(w http.ResponseWriter, r *http.Request) {
 	id, err := api.repo.AddBook(entitiy)
 
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		e := APIError{
-			Status:  http.StatusInternalServerError,
-			Message: err.Error(),
-		}
-		fmt.Fprint(w, e.Error())
+		writeErr(err, http.StatusInternalServerError, w)
 		return
 	}
 
@@ -177,31 +178,18 @@ func (api API) RemoveBook(w http.ResponseWriter, r *http.Request) {
 	p := r.PathValue("id")
 	id, err := strconv.Atoi(p)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
 		e := APIError{
 			Status:  http.StatusBadRequest,
 			Message: "only accept integer values as {id} path parameter",
 		}
-		fmt.Fprint(w, e.Error())
+		writeAPIErr(e, w)
 		return
 	}
 
 	err = api.repo.RemoveBook(id)
 	if err != nil {
-		var code int
-		switch err.(type) {
-		case notfoundErr:
-			code = http.StatusNotFound
-		case internalErr:
-			code = http.StatusInternalServerError
-		}
-
-		w.WriteHeader(code)
-		e := APIError{
-			Status:  code,
-			Message: err.Error(),
-		}
-		fmt.Fprint(w, e.Error())
+		code := getRepoErrcode(err)
+		writeErr(err, code, w)
 		return
 	}
 
@@ -228,12 +216,11 @@ func (api API) UpdateBook(w http.ResponseWriter, r *http.Request) {
 	p := r.PathValue("id")
 	id, err := strconv.Atoi(p)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
 		e := APIError{
 			Status:  http.StatusBadRequest,
 			Message: "only accept integer values as {id} path parameter",
 		}
-		fmt.Fprint(w, e.Error())
+		writeAPIErr(e, w)
 		return
 	}
 
@@ -242,32 +229,19 @@ func (api API) UpdateBook(w http.ResponseWriter, r *http.Request) {
 	decoder.DisallowUnknownFields()
 	err = decoder.Decode(&dto)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
 		e := APIError{
 			Message: "invalid request model",
 			Status:  http.StatusBadRequest,
 		}
-		fmt.Fprint(w, e.Error())
+		writeAPIErr(e, w)
 		return
 	}
 
 	entitiy := dto.ToEntity()
 	err = api.repo.UpdateBook(id, entitiy)
 	if err != nil {
-		var code int
-		switch err.(type) {
-		case notfoundErr:
-			code = http.StatusNotFound
-		case internalErr:
-			code = http.StatusInternalServerError
-		}
-
-		w.WriteHeader(code)
-		e := APIError{
-			Status:  code,
-			Message: err.Error(),
-		}
-		fmt.Fprint(w, e.Error())
+		code := getRepoErrcode(err)
+		writeErr(err, code, w)
 		return
 	}
 
