@@ -49,8 +49,11 @@ func main() {
 
 			ng.HandleRouteFunc("GET /books/{id}", func(w http.ResponseWriter, r *http.Request) {
 				booksApi.GetBook(w, r)
-				// fmt.Fprintf(w, "%v", r.PathValue("id"))
 			})
+
+            ng.HandleRouteFunc("POST /books", func(w http.ResponseWriter, r *http.Request) {
+                booksApi.AddBook(w, r)
+            })
 
 		})
 

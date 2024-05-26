@@ -3,6 +3,7 @@ package books
 type IBooksRepo interface {
 	GetBooks() ([]bookEntity, error)
 	GetBookById(int) (bookEntity, error)
+	AddBook(bookEntity) (int, error)
 }
 
 type BooksRepo struct{}
@@ -29,4 +30,8 @@ func (repo *BooksRepo) GetBookById(id int) (bookEntity, error) {
 		Price:         20,
 		ReleaseYear:   1954,
 	}, nil
+}
+
+func (repo *BooksRepo) AddBook(bookEntity) (int, error) {
+	return 0, nil
 }

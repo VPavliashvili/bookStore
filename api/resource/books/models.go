@@ -26,6 +26,14 @@ type bookDTO struct {
 	ReleaseYear   int    `json:"releaseYear"`
 }
 
+func (b bookDTO) ToEntity() bookEntity {
+	return bookEntity(b)
+}
+
+type ActionResponse struct {
+	ResourceId int  `json:"resourceId"`
+}
+
 type APIError struct {
 	Status  int    `json:"status"`
 	Message string `json:"message"`

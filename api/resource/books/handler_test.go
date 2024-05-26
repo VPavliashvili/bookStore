@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
+	"strings"
 	"testing"
 )
 
@@ -29,6 +31,7 @@ func (w *fakeWriter) WriteHeader(statusCode int) {
 type fakeRepo struct {
 	pluralReturner func() ([]bookEntity, error)
 	singleReturner func(int) (bookEntity, error)
+	addbookAction  func(bookEntity) (int, error)
 }
 
 func (r fakeRepo) GetBookById(id int) (bookEntity, error) {
@@ -37,6 +40,10 @@ func (r fakeRepo) GetBookById(id int) (bookEntity, error) {
 
 func (r fakeRepo) GetBooks() ([]bookEntity, error) {
 	return r.pluralReturner()
+}
+
+func (r fakeRepo) AddBook(e bookEntity) (int, error) {
+	return r.addbookAction(e)
 }
 
 func TestGetBooks(t *testing.T) {
@@ -251,10 +258,147 @@ func TestGetBookById(t *testing.T) {
 		api := API{repo: tc.repo}
 		api.GetBook(tc.w, tc.req)
 		if tc.expected.data != tc.w.input {
-			t.Errorf("GetBooks failed\nexpected %v\ngot %s", tc.expected.data, tc.w.input)
+			t.Errorf("GetBook failed\nexpected %v\ngot %s", tc.expected.data, tc.w.input)
 		}
 		if tc.expected.headerStatus != tc.w.headerStatus {
-			t.Errorf("GetBooks response header failed\nexpected %v\ngot  %v",
+			t.Errorf("GetBook response header failed\nexpected %v\ngot  %v",
+				tc.expected.headerStatus, tc.w.headerStatus)
+		}
+	}
+}
+
+func TestAddBook(t *testing.T) {
+	tcases := []struct {
+		repo     fakeRepo
+		w        *fakeWriter
+		req      *http.Request
+		expected struct {
+			data         string
+			headerStatus int
+		}
+	}{
+		{
+			repo: fakeRepo{
+				addbookAction: func(bookEntity) (int, error) {
+					return 0, badreqErr{message: "required fields are not set, won't save the data"}
+				},
+			},
+			w: &fakeWriter{},
+			req: func() *http.Request {
+				rq := &http.Request{}
+				j, _ := json.Marshal(bookDTO{})
+				rq.Body = io.NopCloser(strings.NewReader(string(j[:])))
+
+				return rq
+			}(),
+			expected: struct {
+				data         string
+				headerStatus int
+			}{
+				data: func() string {
+					e := APIError{
+						Message: "required fields are not set, won't save the data",
+						Status:  http.StatusBadRequest,
+					}
+					return e.Error()
+				}(),
+				headerStatus: http.StatusBadRequest,
+			},
+		},
+		{
+			repo: fakeRepo{},
+			w:    &fakeWriter{},
+			req: func() *http.Request {
+				msg := `{"tst":"value"}`
+				rq, _ := http.NewRequest("POST", "", strings.NewReader(msg))
+
+				return rq
+			}(),
+			expected: struct {
+				data         string
+				headerStatus int
+			}{
+				data: func() string {
+					e := APIError{
+						Message: "invalid request model",
+						Status:  http.StatusBadRequest,
+					}
+					return e.Error()
+				}(),
+				headerStatus: http.StatusBadRequest,
+			},
+		},
+		{
+			repo: fakeRepo{addbookAction: func(e bookEntity) (int, error) {
+				if e.Title != "test" || e.Author != "tst" || e.Genre != "idk" ||
+					e.NumberOfPages != 1 || e.Price != 2 || e.ReleaseYear != 3 {
+					return 0, errors.New("")
+				}
+				return 1, nil
+			}},
+			w: &fakeWriter{},
+			req: func() *http.Request {
+				d := bookDTO{
+					Title:         "test",
+					Author:        "tst",
+					Genre:         "idk",
+					NumberOfPages: 1,
+					Price:         2,
+					ReleaseYear:   3,
+				}
+				j, _ := json.Marshal(d)
+				rq, _ := http.NewRequest("POST", "", strings.NewReader(string(j[:])))
+
+				return rq
+			}(),
+			expected: struct {
+				data         string
+				headerStatus int
+			}{
+				data: func() string {
+					a := ActionResponse{ResourceId: 1}
+					j, _ := json.Marshal(a)
+					return string(j[:])
+				}(),
+				headerStatus: http.StatusCreated,
+			},
+		},
+		{
+			repo: fakeRepo{addbookAction: func(e bookEntity) (int, error) {
+				return 0, internalErr{message: "internal error"}
+			}},
+			w: &fakeWriter{},
+			req: func() *http.Request {
+				d := bookDTO{
+					Title:  "test",
+					Author: "tst",
+				}
+				j, _ := json.Marshal(d)
+				rq, _ := http.NewRequest("POST", "", strings.NewReader(string(j[:])))
+
+				return rq
+			}(),
+			expected: struct {
+				data         string
+				headerStatus int
+			}{
+				data: func() string {
+					a := APIError{Message: "internal error", Status: http.StatusInternalServerError}
+					j, _ := json.Marshal(a)
+					return string(j[:])
+				}(),
+				headerStatus: http.StatusInternalServerError,
+			},
+		}}
+
+	for _, tc := range tcases {
+		api := API{repo: tc.repo}
+		api.AddBook(tc.w, tc.req)
+		if tc.expected.data != tc.w.input {
+			t.Errorf("AddBook failed\nexpected %v\ngot %s", tc.expected.data, tc.w.input)
+		}
+		if tc.expected.headerStatus != tc.w.headerStatus {
+			t.Errorf("AddBook response header failed\nexpected %v\ngot  %v",
 				tc.expected.headerStatus, tc.w.headerStatus)
 		}
 	}
