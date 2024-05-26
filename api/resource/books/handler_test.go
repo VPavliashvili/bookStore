@@ -29,9 +29,10 @@ func (w *fakeWriter) WriteHeader(statusCode int) {
 }
 
 type fakeRepo struct {
-	pluralReturner func() ([]bookEntity, error)
-	singleReturner func(int) (bookEntity, error)
-	addbookAction  func(bookEntity) (int, error)
+	pluralReturner   func() ([]bookEntity, error)
+	singleReturner   func(int) (bookEntity, error)
+	addbookAction    func(bookEntity) (int, error)
+	removeBookAction func(int) error
 }
 
 func (r fakeRepo) GetBookById(id int) (bookEntity, error) {
@@ -44,6 +45,10 @@ func (r fakeRepo) GetBooks() ([]bookEntity, error) {
 
 func (r fakeRepo) AddBook(e bookEntity) (int, error) {
 	return r.addbookAction(e)
+}
+
+func (r fakeRepo) RemoveBook(id int) error {
+	return r.removeBookAction(id)
 }
 
 func TestGetBooks(t *testing.T) {
@@ -65,10 +70,10 @@ func TestGetBooks(t *testing.T) {
 				headerStatus int
 			}{
 				data: APIError{
-					Status:  500,
+					Status:  http.StatusInternalServerError,
 					Message: "fake err",
 				}.Error(),
-				headerStatus: 500,
+				headerStatus: http.StatusInternalServerError,
 			},
 		},
 		{
@@ -105,7 +110,7 @@ func TestGetBooks(t *testing.T) {
 					json, _ := json.Marshal(dtos)
 					return string(json[:])
 				}(),
-				headerStatus: 200,
+				headerStatus: http.StatusOK,
 			},
 		},
 		{
@@ -120,7 +125,7 @@ func TestGetBooks(t *testing.T) {
 				headerStatus int
 			}{
 				data:         "[]",
-				headerStatus: 200,
+				headerStatus: http.StatusOK,
 			},
 		},
 		{
@@ -135,7 +140,7 @@ func TestGetBooks(t *testing.T) {
 				headerStatus int
 			}{
 				data:         "[]",
-				headerStatus: 200,
+				headerStatus: http.StatusOK,
 			},
 		},
 	}
@@ -177,10 +182,10 @@ func TestGetBookById(t *testing.T) {
 				headerStatus int
 			}{
 				data: APIError{
-					Status:  400,
+					Status:  http.StatusBadRequest,
 					Message: "only accept integer values as {id} path parameter",
 				}.Error(),
-				headerStatus: 400,
+				headerStatus: http.StatusBadRequest,
 			},
 		},
 		{
@@ -199,10 +204,10 @@ func TestGetBookById(t *testing.T) {
 				headerStatus int
 			}{
 				data: APIError{
-					Status:  404,
+					Status:  http.StatusNotFound,
 					Message: "resource not found err, at id -> 123",
 				}.Error(),
-				headerStatus: 404,
+				headerStatus: http.StatusNotFound,
 			},
 		},
 		{
@@ -221,10 +226,10 @@ func TestGetBookById(t *testing.T) {
 				headerStatus int
 			}{
 				data: APIError{
-					Status:  500,
+					Status:  http.StatusInternalServerError,
 					Message: "internal err",
 				}.Error(),
-				headerStatus: 500,
+				headerStatus: http.StatusInternalServerError,
 			},
 		},
 		{
@@ -249,7 +254,7 @@ func TestGetBookById(t *testing.T) {
 					json, _ := json.Marshal(dto)
 					return string(json[:])
 				}(),
-				headerStatus: 200,
+				headerStatus: http.StatusOK,
 			},
 		},
 	}
@@ -399,6 +404,114 @@ func TestAddBook(t *testing.T) {
 		}
 		if tc.expected.headerStatus != tc.w.headerStatus {
 			t.Errorf("AddBook response header failed\nexpected %v\ngot  %v",
+				tc.expected.headerStatus, tc.w.headerStatus)
+		}
+	}
+}
+
+func TestRemoveBookById(t *testing.T) {
+	tcases := []struct {
+		repo     fakeRepo
+		w        *fakeWriter
+		req      *http.Request
+		expected struct {
+			data         string
+			headerStatus int
+		}
+	}{
+		{
+			repo: fakeRepo{},
+			w:    &fakeWriter{},
+			req: func() *http.Request {
+				rq := &http.Request{}
+				rq.SetPathValue("id", "wrongStr")
+
+				return rq
+			}(),
+			expected: struct {
+				data         string
+				headerStatus int
+			}{
+				data: APIError{
+					Status:  http.StatusBadRequest,
+					Message: "only accept integer values as {id} path parameter",
+				}.Error(),
+				headerStatus: http.StatusBadRequest,
+			},
+		},
+		{
+			repo: fakeRepo{removeBookAction: func(i int) error {
+				return notfoundErr{fmt.Sprintf("resource not found err, at id -> %v", i)}
+			}},
+			w: &fakeWriter{},
+			req: func() *http.Request {
+				rq := &http.Request{}
+				rq.SetPathValue("id", "123")
+
+				return rq
+			}(),
+			expected: struct {
+				data         string
+				headerStatus int
+			}{
+				data: APIError{
+					Status:  http.StatusNotFound,
+					Message: "resource not found err, at id -> 123",
+				}.Error(),
+				headerStatus: http.StatusNotFound,
+			},
+		},
+		{
+			repo: fakeRepo{removeBookAction: func(i int) error {
+				return internalErr{message: "internal err"}
+			}},
+			w: &fakeWriter{},
+			req: func() *http.Request {
+				rq := &http.Request{}
+				rq.SetPathValue("id", "10")
+
+				return rq
+			}(),
+			expected: struct {
+				data         string
+				headerStatus int
+			}{
+				data: APIError{
+					Status:  http.StatusInternalServerError,
+					Message: "internal err",
+				}.Error(),
+				headerStatus: http.StatusInternalServerError,
+			},
+		},
+		{
+			repo: fakeRepo{removeBookAction: func(i int) error {
+				return nil
+			}},
+			w: &fakeWriter{},
+			req: func() *http.Request {
+				rq := &http.Request{}
+				rq.SetPathValue("id", "10")
+
+				return rq
+			}(),
+			expected: struct {
+				data         string
+				headerStatus int
+			}{
+				data:         "",
+				headerStatus: http.StatusNoContent,
+			},
+		},
+	}
+
+	for _, tc := range tcases {
+		api := API{repo: tc.repo}
+		api.RemoveBook(tc.w, tc.req)
+		if tc.expected.data != tc.w.input {
+			t.Errorf("GetBook failed\nexpected %v\ngot %s", tc.expected.data, tc.w.input)
+		}
+		if tc.expected.headerStatus != tc.w.headerStatus {
+			t.Errorf("GetBook response header failed\nexpected %v\ngot  %v",
 				tc.expected.headerStatus, tc.w.headerStatus)
 		}
 	}

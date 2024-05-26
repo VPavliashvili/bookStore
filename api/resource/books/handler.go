@@ -84,8 +84,6 @@ func (api API) GetBook(w http.ResponseWriter, r *http.Request) {
 			code = http.StatusInternalServerError
 		case notfoundErr:
 			code = http.StatusNotFound
-		case badreqErr:
-			code = http.StatusBadRequest
 		}
 		w.WriteHeader(code)
 		e := APIError{
@@ -103,7 +101,7 @@ func (api API) GetBook(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "%s", string(json[:]))
 }
 
-// AddBook adds new books into database
+// AddBook adds new book into database
 //
 //	@Summary		Add new book
 //	@Description	adds book
@@ -160,4 +158,53 @@ func (api API) AddBook(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusCreated)
 	fmt.Fprint(w, string(j[:]))
+}
+
+// DeleteBook deletes existing book from database
+//
+//	@Summary		Remove book record
+//	@Description	removes book record
+//	@Tags			books
+//	@Accept			json
+//	@Produce		json
+//	@Param			id	path		int	true	"book record Id"
+//	@Success		204
+//	@Failure		500		{object}	APIError
+//	@Failure		400		{object}	APIError
+//	@Router			/api/books/{id} [delete]
+func (api API) RemoveBook(w http.ResponseWriter, r *http.Request) {
+	p := r.PathValue("id")
+	id, err := strconv.Atoi(p)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		e := APIError{
+			Status:  http.StatusBadRequest,
+			Message: "only accept integer values as {id} path parameter",
+		}
+		fmt.Fprint(w, e.Error())
+		return
+	}
+
+	err = api.repo.RemoveBook(id)
+	if err != nil {
+		var code int
+		switch err.(type) {
+		case notfoundErr:
+			code = http.StatusNotFound
+		case internalErr:
+			code = http.StatusInternalServerError
+		}
+
+		w.WriteHeader(code)
+		e := APIError{
+			Status:  code,
+			Message: err.Error(),
+		}
+		fmt.Fprint(w, e.Error())
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+	fmt.Fprint(w, "")
+
 }

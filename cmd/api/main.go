@@ -55,6 +55,10 @@ func main() {
                 booksApi.AddBook(w, r)
             })
 
+            ng.HandleRouteFunc("DELETE /books/{id}", func(w http.ResponseWriter, r *http.Request) {
+                booksApi.RemoveBook(w, r)
+            })
+
 		})
 
 		this.HandleFunc("GET /swagger/*", httpSwagger.Handler(
