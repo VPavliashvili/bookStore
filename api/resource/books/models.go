@@ -5,6 +5,7 @@ import (
 )
 
 type bookEntity struct {
+	ID            int
 	Title         string
 	Author        string
 	Genre         string
@@ -18,6 +19,7 @@ func (b bookEntity) ToDto() bookDTO {
 }
 
 type bookDTO struct {
+	ID            int    `json:"id"`
 	Title         string `json:"title"`
 	Author        string `json:"author"`
 	Genre         string `json:"genre"`
@@ -31,7 +33,7 @@ func (b bookDTO) ToEntity() bookEntity {
 }
 
 type ActionResponse struct {
-	ResourceId int  `json:"resourceId"`
+	ResourceId int `json:"resourceId"`
 }
 
 type APIError struct {

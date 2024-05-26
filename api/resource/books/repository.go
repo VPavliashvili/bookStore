@@ -5,6 +5,7 @@ type IBooksRepo interface {
 	GetBookById(int) (bookEntity, error)
 	AddBook(bookEntity) (int, error)
 	RemoveBook(int) error
+	UpdateBook(int, bookEntity) error
 }
 
 type BooksRepo struct{}
@@ -38,5 +39,9 @@ func (repo *BooksRepo) AddBook(bookEntity) (int, error) {
 }
 
 func (repo *BooksRepo) RemoveBook(int) error {
+	return nil
+}
+
+func (repo *BooksRepo) UpdateBook(int, bookEntity) error {
 	return nil
 }

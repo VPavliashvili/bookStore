@@ -51,13 +51,17 @@ func main() {
 				booksApi.GetBook(w, r)
 			})
 
-            ng.HandleRouteFunc("POST /books", func(w http.ResponseWriter, r *http.Request) {
-                booksApi.AddBook(w, r)
-            })
+			ng.HandleRouteFunc("POST /books", func(w http.ResponseWriter, r *http.Request) {
+				booksApi.AddBook(w, r)
+			})
 
-            ng.HandleRouteFunc("DELETE /books/{id}", func(w http.ResponseWriter, r *http.Request) {
-                booksApi.RemoveBook(w, r)
-            })
+			ng.HandleRouteFunc("DELETE /books/{id}", func(w http.ResponseWriter, r *http.Request) {
+				booksApi.RemoveBook(w, r)
+			})
+
+			ng.HandleRouteFunc("PATCH /books/{id}", func(w http.ResponseWriter, r *http.Request) {
+				booksApi.UpdateBook(w, r)
+			})
 
 		})
 

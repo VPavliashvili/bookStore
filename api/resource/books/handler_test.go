@@ -33,6 +33,7 @@ type fakeRepo struct {
 	singleReturner   func(int) (bookEntity, error)
 	addbookAction    func(bookEntity) (int, error)
 	removeBookAction func(int) error
+	updateBookAction func(int, bookEntity) error
 }
 
 func (r fakeRepo) GetBookById(id int) (bookEntity, error) {
@@ -49,6 +50,10 @@ func (r fakeRepo) AddBook(e bookEntity) (int, error) {
 
 func (r fakeRepo) RemoveBook(id int) error {
 	return r.removeBookAction(id)
+}
+
+func (r fakeRepo) UpdateBook(id int, b bookEntity) error {
+	return r.updateBookAction(id, b)
 }
 
 func TestGetBooks(t *testing.T) {
@@ -507,6 +512,180 @@ func TestRemoveBookById(t *testing.T) {
 	for _, tc := range tcases {
 		api := API{repo: tc.repo}
 		api.RemoveBook(tc.w, tc.req)
+		if tc.expected.data != tc.w.input {
+			t.Errorf("GetBook failed\nexpected %v\ngot %s", tc.expected.data, tc.w.input)
+		}
+		if tc.expected.headerStatus != tc.w.headerStatus {
+			t.Errorf("GetBook response header failed\nexpected %v\ngot  %v",
+				tc.expected.headerStatus, tc.w.headerStatus)
+		}
+	}
+}
+
+func TestUpdateBookById(t *testing.T) {
+	tcases := []struct {
+		repo     fakeRepo
+		w        *fakeWriter
+		req      *http.Request
+		expected struct {
+			data         string
+			headerStatus int
+		}
+	}{
+		{
+			req: func() *http.Request {
+				rq := &http.Request{}
+				rq.SetPathValue("id", "wrongStr")
+
+				return rq
+			}(),
+			repo: fakeRepo{},
+			w:    &fakeWriter{},
+			expected: struct {
+				data         string
+				headerStatus int
+			}{
+				data: APIError{
+					Status:  http.StatusBadRequest,
+					Message: "only accept integer values as {id} path parameter",
+				}.Error(),
+				headerStatus: http.StatusBadRequest,
+			},
+		},
+		{
+			repo: fakeRepo{},
+			w:    &fakeWriter{},
+			req: func() *http.Request {
+				rq := &http.Request{}
+				j := `{"tst":"tst"}`
+				rq.Body = io.NopCloser(strings.NewReader(string(j[:])))
+				rq.SetPathValue("id", "10")
+
+				return rq
+			}(),
+			expected: struct {
+				data         string
+				headerStatus int
+			}{
+				data: func() string {
+					e := APIError{
+						Message: "invalid request model",
+						Status:  http.StatusBadRequest,
+					}
+					return e.Error()
+				}(),
+				headerStatus: http.StatusBadRequest,
+			},
+		},
+		{
+			repo: fakeRepo{},
+			w:    &fakeWriter{},
+			req: func() *http.Request {
+				rq := &http.Request{}
+				j := `random text`
+				rq.Body = io.NopCloser(strings.NewReader(string(j[:])))
+				rq.SetPathValue("id", "10")
+
+				return rq
+			}(),
+			expected: struct {
+				data         string
+				headerStatus int
+			}{
+				data: func() string {
+					e := APIError{
+						Message: "invalid request model",
+						Status:  http.StatusBadRequest,
+					}
+					return e.Error()
+				}(),
+				headerStatus: http.StatusBadRequest,
+			},
+		},
+		{
+			repo: fakeRepo{updateBookAction: func(i int, b bookEntity) error {
+				if b.Title != "test" || b.Author != "tst" || b.Genre != "idk" ||
+					b.NumberOfPages != 1 || b.Price != 2 || b.ReleaseYear != 3 {
+					return errors.New("")
+				}
+				return nil
+			}},
+			w: &fakeWriter{},
+			req: func() *http.Request {
+				d := bookDTO{
+					Title:         "test",
+					Author:        "tst",
+					Genre:         "idk",
+					NumberOfPages: 1,
+					Price:         2,
+					ReleaseYear:   3}
+				j, _ := json.Marshal(d)
+				rq, _ := http.NewRequest("POST", "", strings.NewReader(string(j[:])))
+				rq.SetPathValue("id", "10")
+
+				return rq
+			}(),
+			expected: struct {
+				data         string
+				headerStatus int
+			}{
+				data:         "",
+				headerStatus: http.StatusOK,
+			},
+		},
+		{
+			repo: fakeRepo{updateBookAction: func(i int, b bookEntity) error {
+				return internalErr{"internal error"}
+			}},
+			w: &fakeWriter{},
+			req: func() *http.Request {
+				d := bookDTO{}
+				j, _ := json.Marshal(d)
+				rq, _ := http.NewRequest("POST", "", strings.NewReader(string(j[:])))
+				rq.SetPathValue("id", "10")
+
+				return rq
+			}(),
+			expected: struct {
+				data         string
+				headerStatus int
+			}{
+				data: APIError{
+					Status:  http.StatusInternalServerError,
+					Message: "internal error",
+				}.Error(),
+				headerStatus: http.StatusInternalServerError,
+			},
+		},
+		{
+			repo: fakeRepo{updateBookAction: func(i int, b bookEntity) error {
+				return notfoundErr{"not found error"}
+			}},
+			w: &fakeWriter{},
+			req: func() *http.Request {
+				d := bookDTO{}
+				j, _ := json.Marshal(d)
+				rq, _ := http.NewRequest("POST", "", strings.NewReader(string(j[:])))
+				rq.SetPathValue("id", "10")
+
+				return rq
+			}(),
+			expected: struct {
+				data         string
+				headerStatus int
+			}{
+				data: APIError{
+					Status:  http.StatusNotFound,
+					Message: "not found error",
+				}.Error(),
+				headerStatus: http.StatusNotFound,
+			},
+		},
+	}
+
+	for _, tc := range tcases {
+		api := API{repo: tc.repo}
+		api.UpdateBook(tc.w, tc.req)
 		if tc.expected.data != tc.w.input {
 			t.Errorf("GetBook failed\nexpected %v\ngot %s", tc.expected.data, tc.w.input)
 		}
