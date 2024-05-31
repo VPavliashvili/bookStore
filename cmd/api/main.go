@@ -5,6 +5,7 @@ import (
 	"booksapi/api/resource/system"
 	"booksapi/api/router"
 	"booksapi/config"
+	"booksapi/logger"
 
 	"booksapi/api/router/middlewares"
 	"booksapi/docs"
@@ -17,7 +18,7 @@ import (
 
 func main() {
 
-	fmt.Println("APPLICATION HAS STARTED")
+	logger.Info("APPLICATION HAS STARTED")
 
 	appsettings := config.New()
 	conf := appsettings.Config
@@ -41,6 +42,7 @@ func main() {
 		})
 
 		this.AddGroup("/api/", func(ng *router.Group) {
+			ng.Use(middlewares.RequestID)
 			ng.Use(middlewares.LogRequestResponse)
 
 			booksApi := books.New()

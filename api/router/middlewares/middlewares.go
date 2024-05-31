@@ -1,10 +1,13 @@
 package middlewares
 
 import (
+	"booksapi/logger"
 	"bytes"
 	"fmt"
 	"io"
 	"net/http"
+
+	"github.com/google/uuid"
 )
 
 func ContentTypeJSON(next http.Handler) http.Handler {
@@ -19,21 +22,32 @@ func ContentTypeJSON(next http.Handler) http.Handler {
 	})
 }
 
+func RequestID(next http.Handler) http.Handler {
+	const (
+		XRequestIDKey = "XRequestID"
+	)
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		xRequestID := uuid.NewString()
+        w.Header().Set(XRequestIDKey, xRequestID)
+
+		logger.SetNewUUID(xRequestID)
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 func LogRequestResponse(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		req := getRequestLog(r)
 
 		rww := newResponseWriterWrapper(w)
-		// rww.Header()
 
 		defer func() {
 			resp := getResponseLog(rww)
 
-			fmt.Printf(
-				"[Request: %s] [Response: %s]\n",
-				req,
-				resp,
-			)
+			msg := fmt.Sprintf("[Request: %s] [Response: %s]\n", req, resp)
+			logger.Info(msg)
 		}()
 
 		next.ServeHTTP(rww, r)
