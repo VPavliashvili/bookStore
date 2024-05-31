@@ -1,16 +1,17 @@
 package logger
 
 import (
+	"booksapi/api/router"
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
+	"net/http"
 	"os"
 )
 
-var lgr struct {
-	*slog.Logger
-	uuid string
-}
+var lgr *slog.Logger
 
 func init() {
 	f, err := os.OpenFile("./log.json", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
@@ -19,42 +20,83 @@ func init() {
 	}
 	wr := io.MultiWriter(os.Stdout, f)
 
-	lgr = struct {
-		*slog.Logger
-		uuid string
-	}{
-		Logger: slog.New(slog.NewJSONHandler(wr, nil)),
-	}
-}
-
-func SetNewUUID(uuid string) {
-	lgr.uuid = uuid
-}
-
-func wrapUUID(msg string) string {
-	if lgr.uuid != "" {
-		msg = fmt.Sprintf("UUID: %s, msg: %s", lgr.uuid, msg)
-		return msg
-	}
-	return msg
+	lgr = slog.New(slog.NewJSONHandler(wr, nil))
 }
 
 func Info(msg string) {
-	msg = wrapUUID(msg)
 	lgr.Info(msg)
 }
 
 func Error(msg string) {
-	msg = wrapUUID(msg)
 	lgr.Error(msg)
 }
 
 func Warn(msg string) {
-	msg = wrapUUID(msg)
 	lgr.Warn(msg)
 }
 
 func Debug(msg string) {
-	msg = wrapUUID(msg)
-	lgr.Info(msg)
+	lgr.Debug(msg)
+}
+
+type requestResponseLog struct {
+	Req        requestLog  `json:"Req"`
+	Resp       responseLog `json:"Resp"`
+	StatusCode int         `json:"StatusCode"`
+}
+
+type requestLog struct {
+	Route  string              `json:"Route"`
+	Method string              `json:"Method"`
+	Body   string              `json:"Body"`
+	Params map[string][]string `json:"Params"`
+}
+
+type responseLog struct {
+	Header map[string][]string `json:"Header"`
+	Body   string              `json:"Body"`
+}
+
+func getRequestLog(r *http.Request) requestLog {
+	var result requestLog
+
+	body, _ := io.ReadAll(r.Body)
+	r.Body = io.NopCloser(bytes.NewBuffer(body))
+	bodyStr := string(body[:])
+
+	result.Body = bodyStr
+	result.Method = r.Method
+
+	result.Route = r.URL.String()
+	result.Params = r.URL.Query()
+
+	return result
+}
+
+func getResponseLog(rww router.ResponseWriterWrapper) responseLog {
+	var result responseLog
+
+	var buf bytes.Buffer
+	buf.WriteString(rww.Body.String())
+
+	result.Header = (*rww.W).Header()
+	result.Body = buf.String()
+
+	return result
+}
+
+// returns json
+func GetRequestResponseLog(rww router.ResponseWriterWrapper, r *http.Request) string {
+	rrl := requestResponseLog{
+		Req:        getRequestLog(r),
+		Resp:       getResponseLog(rww),
+		StatusCode: *(rww.StatusCode),
+	}
+
+	bytes, err := json.Marshal(rrl)
+	if err != nil {
+		panic(fmt.Sprintf("can't decode model for logging, panicking, err: %s", err.Error()))
+	}
+
+	return string(bytes[:])
 }
