@@ -124,6 +124,7 @@ func (api API) GetBook(w http.ResponseWriter, r *http.Request) {
 func (api API) AddBook(w http.ResponseWriter, r *http.Request) {
 	var dto bookDTO
 	decoder := json.NewDecoder(r.Body)
+	defer r.Body.Close()
 	decoder.DisallowUnknownFields()
 	err := decoder.Decode(&dto)
 	if err != nil {
@@ -226,6 +227,7 @@ func (api API) UpdateBook(w http.ResponseWriter, r *http.Request) {
 
 	var dto bookDTO
 	decoder := json.NewDecoder(r.Body)
+	defer r.Body.Close()
 	decoder.DisallowUnknownFields()
 	err = decoder.Decode(&dto)
 	if err != nil {

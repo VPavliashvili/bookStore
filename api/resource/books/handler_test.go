@@ -339,6 +339,40 @@ func TestAddBook(t *testing.T) {
 			},
 		},
 		{
+			repo: fakeRepo{addbookAction: func(be bookEntity) (int, error) {
+                return 1, nil
+            }},
+			w:    &fakeWriter{},
+			req: func() *http.Request {
+				j := `{
+                        "author": "string",
+                        "genre": "string",
+                        "id": 0,
+                        "numberOfPages": 0,
+                        "price": 0,
+                        "releaseYear": 0,
+                        "title": "string"
+                      }`
+				// rq, _ := http.NewRequest("POST", "", strings.NewReader(msg))
+
+				rq := &http.Request{}
+				rq.Body = io.NopCloser(strings.NewReader(string(j[:])))
+
+				return rq
+			}(),
+			expected: struct {
+				data         string
+				headerStatus int
+			}{
+				data: func() string {
+					a := ActionResponse{ResourceId: 1}
+					j, _ := json.Marshal(a)
+					return string(j[:])
+				}(),
+				headerStatus: http.StatusCreated,
+			},
+		},
+		{
 			repo: fakeRepo{addbookAction: func(e bookEntity) (int, error) {
 				if e.Title != "test" || e.Author != "tst" || e.Genre != "idk" ||
 					e.NumberOfPages != 1 || e.Price != 2 || e.ReleaseYear != 3 {

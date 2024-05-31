@@ -17,7 +17,7 @@ import (
 
 func main() {
 
-	println("HELLO THERE\nAPPLICATION HAS STARTED")
+	fmt.Println("APPLICATION HAS STARTED")
 
 	appsettings := config.New()
 	conf := appsettings.Config
@@ -41,6 +41,8 @@ func main() {
 		})
 
 		this.AddGroup("/api/", func(ng *router.Group) {
+			ng.Use(middlewares.LogRequestResponse)
+
 			booksApi := books.New()
 
 			ng.HandleRouteFunc("GET /books", func(w http.ResponseWriter, r *http.Request) {
