@@ -4,6 +4,7 @@ import (
 	"booksapi/api/database"
 	"booksapi/logger"
 	"context"
+	"errors"
 
 	"github.com/jackc/pgx/v5"
 )
@@ -19,27 +20,52 @@ type IBooksRepo interface {
 type BooksRepo struct{}
 
 func (repo *BooksRepo) GetBooks() ([]bookEntity, error) {
-	return []bookEntity{
-		{
-			Title:         "The Fellowship of the Ring",
-			Author:        "JRR Tolkien",
-			Price:         20,
-			NumberOfPages: 432,
-			Genre:         "fantasy",
-			ReleaseYear:   1954,
-		},
-	}, nil
+	result := make([]bookEntity, 0)
+	query := `SELECT * FROM public.books`
+
+	rows, err := database.Pool.Query(context.Background(), query)
+	if err != nil {
+		logger.Error(err.Error())
+		return result, internalErr{message: err.Error()}
+	}
+
+	for rows.Next() {
+		var r bookEntity
+		err := rows.Scan(&r.ID, &r.Title, &r.Author, &r.Genre,
+			&r.NumberOfPages, &r.Price, &r.ReleaseYear)
+		if err != nil {
+			logger.Error(err.Error())
+			return result, internalErr{message: err.Error()}
+		}
+		result = append(result, r)
+	}
+
+	if err = rows.Err(); err != nil {
+		logger.Error(err.Error())
+		return result, internalErr{message: err.Error()}
+	}
+
+	return result, nil
 }
 
 func (repo *BooksRepo) GetBookById(id int) (bookEntity, error) {
-	return bookEntity{
-		Title:         "The Two Towers",
-		Author:        "JRR Tolkien",
-		Genre:         "fantasy",
-		NumberOfPages: 352,
-		Price:         20,
-		ReleaseYear:   1954,
-	}, nil
+	query := `SELECT * FROM public.books WHERE id = @id`
+	args := pgx.NamedArgs{
+		"id": id,
+	}
+
+	var b bookEntity
+	err := database.Pool.QueryRow(context.Background(), query, args).
+		Scan(&b.ID, &b.Title, &b.Author, &b.Genre, &b.NumberOfPages, &b.Price, &b.ReleaseYear)
+	if err != nil {
+		logger.Error(err.Error())
+		if errors.Is(err, pgx.ErrNoRows) {
+			return b, notfoundErr{message: err.Error()}
+		}
+		return b, internalErr{message: err.Error()}
+	}
+
+	return b, nil
 }
 
 func (repo *BooksRepo) AddBook(b bookEntity) (int, error) {
@@ -59,16 +85,48 @@ func (repo *BooksRepo) AddBook(b bookEntity) (int, error) {
 	err := database.Pool.QueryRow(context.Background(), query, args).Scan(&id)
 	if err != nil {
 		logger.Error(err.Error())
+		if errors.Is(err, pgx.ErrNoRows) {
+			return 0, notfoundErr{message: err.Error()}
+		}
 		return 0, internalErr{message: err.Error()}
 	}
 
 	return id, nil
 }
 
-func (repo *BooksRepo) RemoveBook(int) error {
+func (repo *BooksRepo) RemoveBook(id int) error {
+	query := `DELETE FROM public.books WHERE id = @id`
+	args := pgx.NamedArgs{
+		"id": id,
+	}
+
+	_, err := database.Pool.Exec(context.Background(), query, args)
+	if err != nil {
+		logger.Error(err.Error())
+		if errors.Is(err, pgx.ErrNoRows) {
+			return notfoundErr{message: err.Error()}
+		}
+		return internalErr{message: err.Error()}
+	}
+
 	return nil
 }
 
-func (repo *BooksRepo) UpdateBook(int, bookEntity) error {
+func (repo *BooksRepo) UpdateBook(id int, b bookEntity) error {
+	existing, err := repo.GetBookById(id)
+	if err != nil {
+		logger.Error(err.Error())
+		return err
+	}
+	updated := b
+	updated.ID = id
+
+	if updated.Author == "" {
+		updated.Author = existing.Author
+	}
+
+	// query := `UPDATE public.books
+	//           SET `
+
 	return nil
 }
