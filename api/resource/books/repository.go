@@ -1,5 +1,13 @@
 package books
 
+import (
+	"booksapi/api/database"
+	"booksapi/logger"
+	"context"
+
+	"github.com/jackc/pgx/v5"
+)
+
 type IBooksRepo interface {
 	GetBooks() ([]bookEntity, error)
 	GetBookById(int) (bookEntity, error)
@@ -34,8 +42,27 @@ func (repo *BooksRepo) GetBookById(id int) (bookEntity, error) {
 	}, nil
 }
 
-func (repo *BooksRepo) AddBook(bookEntity) (int, error) {
-	return 0, nil
+func (repo *BooksRepo) AddBook(b bookEntity) (int, error) {
+	query := `INSERT INTO public.books
+                (title, author, genre, number_of_pages, price, release_year)
+                VALUES(@title, @author, @genre, @number_of_pages, @price, @release_year) RETURNING id`
+	args := pgx.NamedArgs{
+		"title":           b.Title,
+		"author":          b.Author,
+		"genre":           b.Genre,
+		"number_of_pages": b.NumberOfPages,
+		"price":           b.Price,
+		"release_year":    b.ReleaseYear,
+	}
+
+	var id int
+	err := database.Pool.QueryRow(context.Background(), query, args).Scan(&id)
+	if err != nil {
+		logger.Error(err.Error())
+		return 0, internalErr{message: err.Error()}
+	}
+
+	return id, nil
 }
 
 func (repo *BooksRepo) RemoveBook(int) error {

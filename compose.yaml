@@ -6,3 +6,12 @@ services:
       - 6012:6012
     volumes:
       - .:/app # this volume provides hotreload capability
+  postgresdb:
+    image: postgres:latest
+    container_name: database_booksapi
+    environment:
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=test
+      - POSTGRES_DB=books_store
+    ports:
+      - 6015:5432

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"booksapi/api/database"
 	"booksapi/api/resource/books"
 	"booksapi/api/resource/system"
 	"booksapi/api/router"
@@ -17,15 +18,17 @@ import (
 )
 
 func main() {
+	config.Init()
+	logger.Init()
+	database.Init()
 
 	logger.Info("APPLICATION HAS STARTED")
-
-	appsettings := config.New()
-	conf := appsettings.Config
 
 	docs.SwaggerInfo.Title = "Books store API"
 	docs.SwaggerInfo.Description = "This is a simple CRUD api implementation for educatinal purposes"
 	docs.SwaggerInfo.Version = "1.0"
+
+	conf := config.GetAppsettings().Config
 
 	router := router.CreateAndSetup(func(this *router.CustomMux) *router.CustomMux {
 		this.Use(middlewares.ContentTypeJSON)

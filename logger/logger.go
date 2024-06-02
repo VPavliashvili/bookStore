@@ -2,6 +2,7 @@ package logger
 
 import (
 	"booksapi/api/router"
+	"booksapi/config"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -13,14 +14,26 @@ import (
 
 var lgr *slog.Logger
 
-func init() {
-	f, err := os.OpenFile("./log.json", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+func Init() {
+	settings := config.GetAppsettings().Logging
+	f, err := os.OpenFile(settings.LogFilePath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		panic(fmt.Sprintf("error opening file: %v", err))
 	}
-	wr := io.MultiWriter(os.Stdout, f)
 
-	lgr = slog.New(slog.NewJSONHandler(wr, nil))
+	var wr io.Writer
+	if settings.EnableConsole {
+		wr = io.MultiWriter(os.Stdout, f)
+	} else {
+		wr = f
+	}
+
+	leveler := new(slog.LevelVar)
+	leveler.Set(slog.LevelDebug)
+
+	lgr = slog.New(slog.NewJSONHandler(wr, &slog.HandlerOptions{
+		Level: leveler,
+	}))
 }
 
 func Info(msg string) {
