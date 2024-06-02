@@ -5,6 +5,7 @@ import (
 	"booksapi/logger"
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/jackc/pgx/v5"
 )
@@ -12,9 +13,9 @@ import (
 type IBooksRepo interface {
 	GetBooks() ([]bookEntity, error)
 	GetBookById(int) (bookEntity, error)
-	AddBook(bookEntity) (int, error)
+	AddBook(bookRequestBody) (int, error)
 	RemoveBook(int) error
-	UpdateBook(int, bookEntity) error
+	UpdateBook(int, bookRequestBody) error
 }
 
 type BooksRepo struct{}
@@ -68,7 +69,7 @@ func (repo *BooksRepo) GetBookById(id int) (bookEntity, error) {
 	return b, nil
 }
 
-func (repo *BooksRepo) AddBook(b bookEntity) (int, error) {
+func (repo *BooksRepo) AddBook(b bookRequestBody) (int, error) {
 	query := `INSERT INTO public.books
                 (title, author, genre, number_of_pages, price, release_year)
                 VALUES(@title, @author, @genre, @number_of_pages, @price, @release_year) RETURNING id`
@@ -112,21 +113,64 @@ func (repo *BooksRepo) RemoveBook(id int) error {
 	return nil
 }
 
-func (repo *BooksRepo) UpdateBook(id int, b bookEntity) error {
+func (repo *BooksRepo) UpdateBook(id int, b bookRequestBody) error {
 	existing, err := repo.GetBookById(id)
 	if err != nil {
 		logger.Error(err.Error())
 		return err
 	}
-	updated := b
-	updated.ID = id
-
-	if updated.Author == "" {
-		updated.Author = existing.Author
+	updated := bookEntity{
+		ID:            id,
+		Title:         existing.Title,
+		Author:        existing.Author,
+		Genre:         existing.Genre,
+		NumberOfPages: existing.NumberOfPages,
+		Price:         existing.Price,
+		ReleaseYear:   existing.ReleaseYear,
 	}
 
-	// query := `UPDATE public.books
-	//           SET `
+	if b.Author != nil {
+		updated.Author = *b.Author
+	}
+	if b.Title != nil {
+		updated.Title = *b.Author
+	}
+	if b.Genre != nil {
+		updated.Genre = *b.Genre
+	}
+	if b.NumberOfPages != nil {
+		updated.NumberOfPages = b.NumberOfPages
+	}
+	if b.Price != nil {
+		updated.Price = b.Price
+	}
+	if b.ReleaseYear != nil {
+		updated.ReleaseYear = b.ReleaseYear
+	}
+
+	logger.Info(fmt.Sprintf("title: %s, author: %s, genre: %s",
+		updated.Title, updated.Author, updated.Genre))
+
+	query := `UPDATE public.books
+	          SET title = @title, author = @author, genre = @genre, number_of_pages = @number_of_pages,
+                            price = @price, release_year = @release_year
+              WHERE id = @id`
+
+	args := pgx.NamedArgs{
+		"id":              id,
+		"title":           updated.Title,
+		"author":          updated.Author,
+		"genre":           updated.Genre,
+		"number_of_pages": updated.NumberOfPages,
+		"price":           updated.Price,
+		"release_year":    updated.ReleaseYear,
+	}
+
+	_, err = database.Pool.Exec(context.Background(), query, args)
+	if err != nil {
+		logger.Error(err.Error())
+		return internalErr{message: err.Error()}
+	}
 
 	return nil
 }

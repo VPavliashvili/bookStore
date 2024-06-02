@@ -10,6 +10,14 @@ import (
 	"testing"
 )
 
+func intptr(x int) *int {
+	return &x
+}
+
+func strptr(s string) *string {
+	return &s
+}
+
 type fakeWriter struct {
 	input        string
 	headerStatus int
@@ -31,9 +39,9 @@ func (w *fakeWriter) WriteHeader(statusCode int) {
 type fakeRepo struct {
 	pluralReturner   func() ([]bookEntity, error)
 	singleReturner   func(int) (bookEntity, error)
-	addbookAction    func(bookEntity) (int, error)
+	addbookAction    func(bookRequestBody) (int, error)
 	removeBookAction func(int) error
-	updateBookAction func(int, bookEntity) error
+	updateBookAction func(int, bookRequestBody) error
 }
 
 func (r fakeRepo) GetBookById(id int) (bookEntity, error) {
@@ -44,7 +52,7 @@ func (r fakeRepo) GetBooks() ([]bookEntity, error) {
 	return r.pluralReturner()
 }
 
-func (r fakeRepo) AddBook(e bookEntity) (int, error) {
+func (r fakeRepo) AddBook(e bookRequestBody) (int, error) {
 	return r.addbookAction(e)
 }
 
@@ -52,7 +60,7 @@ func (r fakeRepo) RemoveBook(id int) error {
 	return r.removeBookAction(id)
 }
 
-func (r fakeRepo) UpdateBook(id int, b bookEntity) error {
+func (r fakeRepo) UpdateBook(id int, b bookRequestBody) error {
 	return r.updateBookAction(id, b)
 }
 
@@ -88,10 +96,10 @@ func TestGetBooks(t *testing.T) {
 						{
 							Title:         "The Fellowship of the Ring",
 							Author:        "JRR Tolkien",
-							Price:         20,
-							NumberOfPages: 432,
+							Price:         intptr(20),
+							NumberOfPages: intptr(432),
 							Genre:         "fantasy",
-							ReleaseYear:   1954,
+							ReleaseYear:   intptr(1954),
 						},
 					}, nil
 				},
@@ -106,10 +114,10 @@ func TestGetBooks(t *testing.T) {
 						{
 							Title:         "The Fellowship of the Ring",
 							Author:        "JRR Tolkien",
-							Price:         20,
-							NumberOfPages: 432,
+							Price:         intptr(20),
+							NumberOfPages: intptr(432),
 							Genre:         "fantasy",
-							ReleaseYear:   1954,
+							ReleaseYear:   intptr(1954),
 						},
 					}
 					json, _ := json.Marshal(dtos)
@@ -289,14 +297,14 @@ func TestAddBook(t *testing.T) {
 	}{
 		{
 			repo: fakeRepo{
-				addbookAction: func(bookEntity) (int, error) {
+				addbookAction: func(bookRequestBody) (int, error) {
 					return 0, badreqErr{message: "required fields are not set, won't save the data"}
 				},
 			},
 			w: &fakeWriter{},
 			req: func() *http.Request {
 				rq := &http.Request{}
-				j, _ := json.Marshal(bookDTO{})
+				j, _ := json.Marshal(bookRequestBody{})
 				rq.Body = io.NopCloser(strings.NewReader(string(j[:])))
 
 				return rq
@@ -339,15 +347,14 @@ func TestAddBook(t *testing.T) {
 			},
 		},
 		{
-			repo: fakeRepo{addbookAction: func(be bookEntity) (int, error) {
-                return 1, nil
-            }},
-			w:    &fakeWriter{},
+			repo: fakeRepo{addbookAction: func(be bookRequestBody) (int, error) {
+				return 1, nil
+			}},
+			w: &fakeWriter{},
 			req: func() *http.Request {
 				j := `{
                         "author": "string",
                         "genre": "string",
-                        "id": 0,
                         "numberOfPages": 0,
                         "price": 0,
                         "releaseYear": 0,
@@ -373,22 +380,22 @@ func TestAddBook(t *testing.T) {
 			},
 		},
 		{
-			repo: fakeRepo{addbookAction: func(e bookEntity) (int, error) {
-				if e.Title != "test" || e.Author != "tst" || e.Genre != "idk" ||
-					e.NumberOfPages != 1 || e.Price != 2 || e.ReleaseYear != 3 {
+			repo: fakeRepo{addbookAction: func(e bookRequestBody) (int, error) {
+				if *e.Title != "test" || *e.Author != "tst" || *e.Genre != "idk" ||
+					*e.NumberOfPages != 1 || *e.Price != 2 || *e.ReleaseYear != 3 {
 					return 0, errors.New("")
 				}
 				return 1, nil
 			}},
 			w: &fakeWriter{},
 			req: func() *http.Request {
-				d := bookDTO{
-					Title:         "test",
-					Author:        "tst",
-					Genre:         "idk",
-					NumberOfPages: 1,
-					Price:         2,
-					ReleaseYear:   3,
+				d := bookRequestBody{
+					Title:         strptr("test"),
+					Author:        strptr("tst"),
+					Genre:         strptr("idk"),
+					NumberOfPages: intptr(1),
+					Price:         intptr(2),
+					ReleaseYear:   intptr(3),
 				}
 				j, _ := json.Marshal(d)
 				rq, _ := http.NewRequest("POST", "", strings.NewReader(string(j[:])))
@@ -408,7 +415,7 @@ func TestAddBook(t *testing.T) {
 			},
 		},
 		{
-			repo: fakeRepo{addbookAction: func(e bookEntity) (int, error) {
+			repo: fakeRepo{addbookAction: func(e bookRequestBody) (int, error) {
 				return 0, internalErr{message: "internal error"}
 			}},
 			w: &fakeWriter{},
@@ -637,22 +644,23 @@ func TestUpdateBookById(t *testing.T) {
 			},
 		},
 		{
-			repo: fakeRepo{updateBookAction: func(i int, b bookEntity) error {
-				if b.Title != "test" || b.Author != "tst" || b.Genre != "idk" ||
-					b.NumberOfPages != 1 || b.Price != 2 || b.ReleaseYear != 3 {
+			repo: fakeRepo{updateBookAction: func(i int, b bookRequestBody) error {
+				if *b.Title != "test" || *b.Author != "tst" || *b.Genre != "idk" ||
+					*b.NumberOfPages != 1 || *b.Price != 2 || *b.ReleaseYear != 3 {
 					return errors.New("")
 				}
 				return nil
 			}},
 			w: &fakeWriter{},
 			req: func() *http.Request {
-				d := bookDTO{
-					Title:         "test",
-					Author:        "tst",
-					Genre:         "idk",
-					NumberOfPages: 1,
-					Price:         2,
-					ReleaseYear:   3}
+				d := bookRequestBody{
+					Title:         strptr("test"),
+					Author:        strptr("tst"),
+					Genre:         strptr("idk"),
+					NumberOfPages: intptr(1),
+					Price:         intptr(2),
+					ReleaseYear:   intptr(3),
+				}
 				j, _ := json.Marshal(d)
 				rq, _ := http.NewRequest("POST", "", strings.NewReader(string(j[:])))
 				rq.SetPathValue("id", "10")
@@ -664,16 +672,16 @@ func TestUpdateBookById(t *testing.T) {
 				headerStatus int
 			}{
 				data:         "",
-				headerStatus: http.StatusOK,
+				headerStatus: http.StatusNoContent,
 			},
 		},
 		{
-			repo: fakeRepo{updateBookAction: func(i int, b bookEntity) error {
+			repo: fakeRepo{updateBookAction: func(i int, b bookRequestBody) error {
 				return internalErr{"internal error"}
 			}},
 			w: &fakeWriter{},
 			req: func() *http.Request {
-				d := bookDTO{}
+				d := bookRequestBody{}
 				j, _ := json.Marshal(d)
 				rq, _ := http.NewRequest("POST", "", strings.NewReader(string(j[:])))
 				rq.SetPathValue("id", "10")
@@ -692,12 +700,12 @@ func TestUpdateBookById(t *testing.T) {
 			},
 		},
 		{
-			repo: fakeRepo{updateBookAction: func(i int, b bookEntity) error {
+			repo: fakeRepo{updateBookAction: func(i int, b bookRequestBody) error {
 				return notfoundErr{"not found error"}
 			}},
 			w: &fakeWriter{},
 			req: func() *http.Request {
-				d := bookDTO{}
+				d := bookRequestBody{}
 				j, _ := json.Marshal(d)
 				rq, _ := http.NewRequest("POST", "", strings.NewReader(string(j[:])))
 				rq.SetPathValue("id", "10")

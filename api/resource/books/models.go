@@ -4,14 +4,23 @@ import (
 	"encoding/json"
 )
 
+type bookRequestBody struct {
+	Title         *string `json:"title"`
+	Author        *string `json:"author"`
+	Genre         *string `json:"genre"`
+	NumberOfPages *int    `json:"numberOfPages"`
+	Price         *int    `json:"price"`
+	ReleaseYear   *int    `json:"releaseYear"`
+}
+
 type bookEntity struct {
 	ID            int
 	Title         string
 	Author        string
 	Genre         string
-	NumberOfPages int
-	Price         int
-	ReleaseYear   int
+	NumberOfPages *int
+	Price         *int
+	ReleaseYear   *int
 }
 
 func (b bookEntity) ToDto() bookDTO {
@@ -23,13 +32,9 @@ type bookDTO struct {
 	Title         string `json:"title"`
 	Author        string `json:"author"`
 	Genre         string `json:"genre"`
-	NumberOfPages int    `json:"numberOfPages"`
-	Price         int    `json:"price"`
-	ReleaseYear   int    `json:"releaseYear"`
-}
-
-func (b bookDTO) ToEntity() bookEntity {
-	return bookEntity(b)
+	NumberOfPages *int   `json:"numberOfPages"`
+	Price         *int   `json:"price"`
+	ReleaseYear   *int   `json:"releaseYear"`
 }
 
 type ActionResponse struct {

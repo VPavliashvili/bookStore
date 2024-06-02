@@ -116,17 +116,17 @@ func (api API) GetBook(w http.ResponseWriter, r *http.Request) {
 //	@Tags			books
 //	@Accept			json
 //	@Produce		json
-//	@Param			newbook	body		bookDTO	true	"request body"
+//	@Param			newbook	body		bookRequestBody	true	"request body"
 //	@Success		201		{object}	ActionResponse
 //	@Failure		500		{object}	APIError
 //	@Failure		400		{object}	APIError
 //	@Router			/api/books [post]
 func (api API) AddBook(w http.ResponseWriter, r *http.Request) {
-	var dto bookDTO
+	var req bookRequestBody
 	decoder := json.NewDecoder(r.Body)
 	defer r.Body.Close()
 	decoder.DisallowUnknownFields()
-	err := decoder.Decode(&dto)
+	err := decoder.Decode(&req)
 	if err != nil {
 		e := APIError{
 			Message: "invalid request model",
@@ -136,7 +136,7 @@ func (api API) AddBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if len(dto.Title) == 0 || len(dto.Author) == 0 {
+	if req.Title == nil || req.Author == nil {
 		e := APIError{
 			Message: "required fields are not set, won't save the data",
 			Status:  http.StatusBadRequest,
@@ -145,8 +145,7 @@ func (api API) AddBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	entitiy := dto.ToEntity()
-	id, err := api.repo.AddBook(entitiy)
+	id, err := api.repo.AddBook(req)
 
 	if err != nil {
 		writeErr(err, http.StatusInternalServerError, w)
@@ -225,11 +224,11 @@ func (api API) UpdateBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var dto bookDTO
+	var req bookRequestBody
 	decoder := json.NewDecoder(r.Body)
 	defer r.Body.Close()
 	decoder.DisallowUnknownFields()
-	err = decoder.Decode(&dto)
+	err = decoder.Decode(&req)
 	if err != nil {
 		e := APIError{
 			Message: "invalid request model",
@@ -239,15 +238,14 @@ func (api API) UpdateBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	entitiy := dto.ToEntity()
-	err = api.repo.UpdateBook(id, entitiy)
+	err = api.repo.UpdateBook(id, req)
 	if err != nil {
 		code := getRepoErrcode(err)
 		writeErr(err, code, w)
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(http.StatusNoContent)
 	fmt.Print(w, "")
 
 }
