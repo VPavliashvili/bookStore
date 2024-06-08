@@ -1,6 +1,8 @@
 package system
 
 import (
+	"booksapi/api/database"
+	"booksapi/config"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -46,8 +48,40 @@ func (api API) HandleAbout(w http.ResponseWriter, r *http.Request) {
 //	@Success		200	{object}	healthDTO
 //	@Router			/api/system/health [get]
 func (api API) HandleHealth(w http.ResponseWriter, r *http.Request) {
+	dependencies := []dependency{
+		{
+			Name: func() string {
+				db := config.GetAppsettings().Database
+				return db.Db
+			}(),
+			HealthStatus: func() struct {
+				Healthy bool   `json:"healthy"`
+				Err     string `json:"err"`
+			} {
+				e := ""
+				b := true
+				err := database.Ping()
+				if err != nil {
+					b = false
+					e = err.Error()
+				}
+				return struct {
+					Healthy bool   `json:"healthy"`
+					Err     string `json:"err"`
+				}{
+					Healthy: b,
+					Err:     e,
+				}
+			}(),
+			Address: func() string {
+				db := config.GetAppsettings().Database
+				return fmt.Sprintf("%s:%d/%s", db.Host, db.Port, db.Db)
+			}(),
+		},
+	}
+
 	dto := healthDTO{
-		Healthy: true, // TO DO
+		Dependencies: dependencies,
 	}
 
 	json, _ := json.Marshal(dto)

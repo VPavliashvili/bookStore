@@ -26,6 +26,11 @@ func Init() {
 	logger.Info("database pool initialized")
 }
 
+func Ping() error {
+	err := Pool.Ping(context.Background())
+	return err
+}
+
 func Close() {
 	Pool.Close()
 }

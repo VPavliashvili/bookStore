@@ -7,6 +7,15 @@ type aboutDTO struct {
 	BuildDatetime string `json:"buildDatetime"`
 }
 
+type dependency struct {
+	Name         string `json:"name"`
+	HealthStatus struct {
+		Healthy bool   `json:"healthy"`
+		Err     string `json:"err"`
+	} `json:"healthStatus"`
+	Address string `json:"address"`
+}
+
 type healthDTO struct {
-	Healthy bool `json:"healhty"`
+    Dependencies []dependency `json:"dependencies"`
 }
