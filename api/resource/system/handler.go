@@ -7,10 +7,13 @@ import (
 )
 
 type API struct {
+	compDate string
 }
 
-func New() API {
-	return API{}
+func New(compDate string) API {
+	return API{
+		compDate: compDate,
+	}
 }
 
 // HandleAbout godoc
@@ -26,7 +29,7 @@ func (api API) HandleAbout(w http.ResponseWriter, r *http.Request) {
 		Product:       "Books Api",
 		Author:        "VPavliashvili",
 		Version:       "1.0",
-		BuildDatetime: "", // TO DO
+		BuildDatetime: api.compDate,
 	}
 
 	json, _ := json.Marshal(dto)

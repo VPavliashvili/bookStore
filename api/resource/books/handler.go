@@ -206,7 +206,7 @@ func (api API) RemoveBook(w http.ResponseWriter, r *http.Request) {
 //	@Accept			json
 //	@Produce		json
 //	@Param			id		path	int		true	"book record Id"
-//	@Param			book	body	bookDTO	true	"request body"
+//	@Param			book	body	bookRequestBody	true	"request body"
 //	@Success		200
 //	@Failure		500	{object}	APIError
 //	@Failure		400	{object}	APIError

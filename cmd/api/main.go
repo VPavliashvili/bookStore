@@ -17,6 +17,8 @@ import (
 	httpSwagger "github.com/swaggo/http-swagger"
 )
 
+var compileDate string
+
 func main() {
 	config.Init()
 	logger.Init()
@@ -34,7 +36,7 @@ func main() {
 		this.Use(middlewares.ContentTypeJSON)
 
 		this.AddGroup("/api/system/", func(ng *router.Group) {
-			systemApi := system.New()
+			systemApi := system.New(compileDate)
 
 			ng.HandleRouteFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 				systemApi.HandleHealth(w, r)
